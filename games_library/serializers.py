@@ -5,3 +5,6 @@ class AppDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppData
         fields = ["app_id", "name"]
+
+class QAppNameSerializer(serializers.Serializer):
+    name = serializers.CharField()
