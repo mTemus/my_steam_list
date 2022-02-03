@@ -23,7 +23,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
     serializer_class = AppDataSerializer
 
     @action(methods=['post'], detail=False, url_path='all', url_name='allapps', serializer_class=QAppNameSerializer)
-    def get_apps(self, request):
+    def get_app_ids(self, request):
         global all_apps_data
 
         if all_apps_data is None:
@@ -47,4 +47,6 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return AppData(
             app_id = app_data.get("appid"), 
             name = app_data.get("name")
-            )
+        )
+
+    
