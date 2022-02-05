@@ -1,5 +1,6 @@
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
+
+from .choices import GAME_STATUS_CHOICES, PLAYING
 
 # Create your models here.
 
@@ -64,7 +65,12 @@ class AppEntityData(models.Model):
 
 class UserAppData(models.Model):
     app_data = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
-    status = models.CharField(max_length=50)
+
+    status = models.CharField(
+        max_length = 2,
+        choices = GAME_STATUS_CHOICES,
+        default = PLAYING)
+
     score = models.IntegerField(min_value=0, max_value=10)
     collections = models.ManyToManyField(Collection, through="AppCollection")
     start_date = models.DateField()
