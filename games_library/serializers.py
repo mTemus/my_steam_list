@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from games_library.models import AppEntityData, Category, Collection, Entity, Genre, ImageData, Release
 
-class AppDataSerializer(serializers.ModelSerializer):
+class AppEnntityDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppEntityData
         fields = ["app_id", 
