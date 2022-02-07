@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 
-from .models import AppEntityData, Category, Entity, Genre, ImageData, Release
-from .serializers import AppEnntityDataSerializer, QAppNameSerializer
+from .models import AppCategory, AppDeveloper, AppDlc, AppData, AppGenre, AppPublisher, Category, Genre, ImageData, Release, Publisher, Developer
+from .serializers import AppDataSerializer, QAppNameSerializer
 
 # Create your views here.
 
@@ -20,11 +20,11 @@ STEAM_STORE_APP = 'https://store.steampowered.com/app/'
 all_apps_data = None
 
 class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
-    queryset = AppEntityData.objects.all()
-    serializer_class = AppEnntityDataSerializer
+    queryset = AppData.objects.all()
+    serializer_class = AppDataSerializer
 
     @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppNameSerializer)
-    def get_apps_by_name(self, request):
+    def querry_apps_by_name(self, request):
 
         # [x] 1. Get apps ids 
         # [x] 2. Try to get apps from db (cached data)
@@ -32,12 +32,12 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         # [x] 4. Get apps details from steam api
             # [x] 5. Filter unsuccessfull requests
             # [x] 6. Extract usable data
-            # [ ] 7. Create models based on data
-            # [ ] 7.1 Bulk create models
-            # [ ] 7.2 Get created models from db filtered by "app_id__in"
-            # [ ] 8. Bound models
-            # [ ] 9. Return created models
-        # [ ] 10. Add created apps models to models querried from db
+            # [x] 7. Create models based on data
+            # [x] 7.1 Bulk create models
+            # [x] 7.2 Get created models from db filtered by "app_id__in"
+            # [x] 8. Bound models
+            # [x] 9. Return created models
+        # [x] 10. Add created apps models to models querried from db
 
         query = request.data
         query_serializer = QAppNameSerializer(data=query)
@@ -47,22 +47,21 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
         apps_ids = self._get_apps_ids(query.get("name"))
 
-        querried_apps = AppEntityData.objects.filter(app_id__in=apps_ids)
-        apps_ids_from_db = [app_data.app_id for app_data in querried_apps]
+        querried_apps = self.get_apps_by_ids(apps_ids)
+        serializer = AppDataSerializer(data=querried_apps, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def get_apps_by_ids(self, apps_ids):
+        apps_from_db = AppData.objects.filter(app_id__in=apps_ids)
+        apps_ids_from_db = [app_data.app_id for app_data in apps_from_db]
         apps_to_querry = apps_ids - apps_ids_from_db
 
         if len(apps_to_querry) == 0:
-            serializer = AppEnntityDataSerializer(data=querried_apps, many=True)
+            serializer = AppDataSerializer(data=apps_from_db, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         apps_from_steam = self._get_apps_from_steam(apps_to_querry)
-
-        
-
-
-        serializer = AppEnntityDataSerializer(data=querried_apps, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+        return apps_from_db + apps_from_steam
 
     def _get_apps_ids(self, query_name):
         global all_apps_data
@@ -77,11 +76,51 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
     def _get_apps_from_steam(self, apps_ids):
         raw_data = [self._get_raw_app_details(app_id) for app_id in apps_ids]
         apps_data = self._extract_apps_data(raw_data)
+        return self._create_and_bound_data(apps_data)
+        
+    def _get_item_from_list_appid(self, id, collection):
+        return next((item for item in collection if item.app_id == id), None)
 
+    def _get_item_from_list_name(self, name, collection):
+        return next((item for item in collection if item.name == name), None)
 
+    def _create_and_bound_data(self, apps_data):
+        apps = self._create_apps(apps_data)
+        dlcs = self._create_dlcs(apps_data)
+        images = self._create_app_images(apps_data)
+        publishers = self._create_publishers(apps_data)
+        developers = self.create_developers(apps_data)
+        genres = self._create_app_genres(apps_data)
+        categories = self._create_app_categories(apps_data)
+        releases = self._create_app_releases(apps_data)
+        app_dlcs = []
+        app_developers = []
+        app_publishers = []
+        app_genres = []
+        app_categories = []
 
+        for app_data in apps_data:
+            app = self._get_item_from_list_appid(app_data.get("app_id"), apps)
 
+            app.release = self._get_item_from_list_appid(app.app_id, releases)
+            app.images = self._get_item_from_list_appid(app.app_id, images)
 
+            app_dlcs += self._create_app_dlcs(app, app_data, dlcs)
+            app_developers += self._create_app_developers(app, app_data, publishers)
+            app_publishers += self._create_app_publishers(app, app_data, developers)
+            app_genres += self._create_app_genres(app, app_data, genres)
+            app_categories += self._create_app_categories(app, app_data, categories)
+            
+        AppDlc.objects.bulk_create(app_dlcs, ignore_conflicts=True)
+        AppDeveloper.objects.bulk_create(app_developers, ignore_conflicts=True)
+        AppPublisher.objects.bulk_create(app_publishers, ignore_conflicts=True)
+        AppGenre.objects.bulk_create(app_genres, ignore_conflicts=True)
+        AppCategory.objects.bulk_create(app_categories, ignore_conflicts=True)
+
+        return apps
+
+    def _get_element(self, name, collection):
+        return next((element for element in collection if element.name == name), None)
 
     def _get_raw_app_details(self, app_id):
         requested_app = requests.get(STEAM_APP_DETAILS, params=app_id).json()
@@ -130,38 +169,43 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         names = [model.name for model in models]
         return models, names
 
-    def _create_app_entites(self, apps_data):
-        appsEntities, app_ids = self._create_model_with_ids(self._create_app_entity_data, apps_data)
-        AppEntityData.objects.bulk_create(appsEntities)
-        return AppEntityData.objects.filter(app_id__in = app_ids)
+    def _create_apps(self, apps_data):
+        appsEntities, app_ids = self._create_model_with_ids(self._create_app_data, apps_data)
+        AppData.objects.bulk_create(appsEntities, ignore_conflicts=True)
+        return AppData.objects.filter(app_id__in = app_ids)
 
     def _create_app_images(self, apps_data):
         appsImages, app_ids = self._create_model_with_ids(self._create_app_image, apps_data) 
-        ImageData.objects.bulk_create(appsImages)
+        ImageData.objects.bulk_create(appsImages, ignore_conflicts=True)
         return ImageData.objects.filter(app_id__in = app_ids)
 
+    def _create_publishers(self, apps_data):
+        publishers, names = self._create_model_with_names(self._create_publisher, apps_data) 
+        Publisher.objects.bulk_create(publishers, ignore_conflicts=True)
+        return Publisher.objects.filter(name__in = names)
+
     def _create_entities(self, apps_data):
-        entities, names = self._create_model_with_names(self._create_entity, apps_data) 
-        Entity.objects.bulk_create(entities)
-        return Entity.objects.filter(name__in = names)
+        developers, names = self._create_model_with_names(self._create_developer, apps_data) 
+        Developer.objects.bulk_create(developers, ignore_conflicts=True)
+        return Developer.objects.filter(name__in = names)
 
     def _create_app_genres(self, apps_data):
         genres, names = self._create_model_with_names(self._create_app_genre, apps_data) 
-        Genre.objects.bulk_create(genres)
+        Genre.objects.bulk_create(genres, ignore_conflicts=True)
         return Genre.objects.filter(name__in = names)
 
     def _create_app_categories(self, apps_data):
         categories, names = self._create_model_with_names(self._create_app_category, apps_data) 
-        Category.objects.bulk_create(categories)
+        Category.objects.bulk_create(categories, ignore_conflicts=True)
         return Category.objects.filter(name__in = names)
 
     def _create_app_releases(self, apps_data):
         app_releases, app_ids = self._create_model_with_ids(self._create_app_release, apps_data)
-        Release.objects.bulk_create(app_releases)
+        Release.objects.bulk_create(app_releases, ignore_conflicts=True)
         return Release.objects.filter(app_id__in = app_ids)
 
-    def _create_app_entity_data(self, app_data):
-        return AppEntityData(
+    def _create_app_data(self, app_data):
+        return AppData(
             app_id = app_data.get("app_id", 0),
             name = app_data.get("name", ""),
             type = app_data.get("type", ""),
@@ -173,8 +217,8 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             release = None,
         )
 
-    def _create_app_dlc(self, app_data):
-        pass
+    def _create_dlcs(self, apps_data):
+        return [self.get_apps_by_ids(app_data.get("dlc")) for app_data in apps_data]
 
     def _create_app_image(self, app_data):
         return ImageData(
@@ -183,8 +227,11 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             background = app_data.get("images",{}).get("background",""),
         )
 
-    def _create_entity(self, app_data, entity_category):
-        return [Entity(name=entity) for entity in app_data.get(entity_category)]
+    def _create_developer(self, app_data):
+        return [Developer(name=developer) for developer in app_data.get("developers")]
+
+    def _create_publisher(self, app_data):
+        return [Publisher(name=publisher) for publisher in app_data.get("publishers")]
 
     def _create_app_genre(self, app_data):
         return [Genre(name=genre) for genre in app_data.get("genres")]
@@ -199,14 +246,42 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             release_date = app_data.get("release_date", {}).get("date"),
         )
 
+    def _create_app_dlcs(self, app, app_data, dlcs):
+        created_dlcs = [AppDlc(
+                name = app.name + ": " + dlc_id,
+                app = app, 
+                dlc = self._get_item_from_list_appid(dlc_id, dlcs)
+                ) 
+                for dlc_id in app_data.get("dlc")]
 
+        for dlc in created_dlcs: dlc.parent_app = app
+        return created_dlcs
 
-    
+    def _create_app_developers(self, app, app_data, developers):
+        return [AppDeveloper(
+                name = app.name + ": " + developer,
+                app = app, 
+                developer = self._get_item_from_list_name(developer, developers)
+                ) 
+                for developer in app_data.get("developers")]
 
-    
+    def _create_app_publishers(self, app, app_data, publishers):
+       return [AppPublisher(
+            name = app.name + ": " + publisher,
+            app = app, 
+            publisher = self._get_item_from_list_name(publisher, publishers)
+            ) for publisher in app_data.get("publishers")]
 
-    
+    def _create_app_genres(self, app, app_data, genres):
+        return [AppGenre(
+            name = app.name + ": " + genre,
+            app = app,
+            genre = self._get_item_from_list_name(genre, genres)
+            ) for genre in app_data.get("genres")]
 
-    
-    
-    
+    def _create_app_categories(self, app, app_data, categories):
+        return [AppGenre(
+            name = app.name + ": " + category,
+            app = app,
+            genre = self._get_item_from_list_name(category, categories)
+            ) for category in app_data.get("categories")]
