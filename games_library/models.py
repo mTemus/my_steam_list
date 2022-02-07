@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 from .choices import GAME_STATUS_CHOICES, PLAYING
 
@@ -7,8 +8,13 @@ from .choices import GAME_STATUS_CHOICES, PLAYING
 class Entity(models.Model):
     name = models.CharField(max_length=100)
 
+class Developer(Entity):
     def __str__(self):
-        return self.name
+        return super.__name__
+
+class Publisher(Entity):
+    def __str__(self):
+        return super.__name__
 
 class Genre(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -44,7 +50,7 @@ class Release(models.Model):
     def __str__(self):
         return self.app_id + ' release'
 
-class AppEntityData(models.Model):
+class AppData(models.Model):
     app_id = models.IntegerField(primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     type = models.CharField(max_length=20)
@@ -53,25 +59,29 @@ class AppEntityData(models.Model):
     short_desc = models.CharField(max_length=500)
     full_desc = models.CharField(max_length=2000)
     about = models.CharField(max_length=2000)
-    images = models.ForeignKey(ImageData, unique=True, on_delete=models.CASCADE)
-    developers = models.ManyToManyField(Entity, through="AppDeveloper")
-    publishers = models.ManyToManyField(Entity, through="AppPublisher")
+    images = models.OneToOneField(ImageData, unique=True, on_delete=models.CASCADE)
+    developers = models.ManyToManyField(Developer, through="AppDeveloper")
+    publishers = models.ManyToManyField(Publisher, through="AppPublisher")
     genres = models.ManyToManyField(Genre, through="AppGenre")
     categories = models.ManyToManyField(Category, through="AppCategory")
-    release = models.ForeignKey(Release, unique=True, on_delete=models.CASCADE)
+    release = models.OneToOneField(Release, unique=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
 
 class UserAppData(models.Model):
-    app_data = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
+    app_data = models.OneToOneField(AppData, on_delete=models.CASCADE)
 
     status = models.CharField(
-        max_length = 2,
+        max_length = 3,
         choices = GAME_STATUS_CHOICES,
         default = PLAYING)
 
-    score = models.IntegerField(min_value=0, max_value=10)
+    score = models.IntegerField( 
+        validators=[
+            MaxValueValidator(2022),
+            MinValueValidator(1000)
+        ])
     collections = models.ManyToManyField(Collection, through="AppCollection")
     start_date = models.DateField()
     end_date = models.DateField()    
@@ -86,48 +96,48 @@ class UserAppData(models.Model):
 
 class AppCategory(models.Model):
     name = models.CharField(max_length=100)
-    app = models.ForeignKey("UserAppData", on_delete=models.CASCADE)
-    category = models.ForeignKey("Category", on_delete=models.CASCADE)
+    app = models.ForeignKey(AppData, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
 
 class AppGenre(models.Model):
     name = models.CharField(max_length=100)
-    app = models.ForeignKey("UserAppData", on_delete=models.CASCADE)
-    genre = models.ForeignKey("Genre", on_delete=models.CASCADE)
+    app = models.ForeignKey(AppData, on_delete=models.CASCADE)
+    genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
 
 class AppDeveloper(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    app = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
-    developer = models.ForeignKey("Entity", on_delete=models.CASCADE)
+    app = models.ForeignKey(AppData, on_delete=models.CASCADE)
+    developer = models.ForeignKey(Developer, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
 
 class AppPublisher(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    app = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
-    publisher = models.ForeignKey("Entity", on_delete=models.CASCADE)
+    app = models.ForeignKey(AppData, on_delete=models.CASCADE)
+    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE)
     
     def __str__(self):
         return self.name
 
 class AppDlc(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    app = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
-    dlc = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
+    app = models.ForeignKey(AppData, on_delete=models.CASCADE)
+    dlc = models.ForeignKey(AppData, on_delete=models.CASCADE, related_name="AppDlc")
 
     def __str__(self):
         return self.name
 
 class AppCollection(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    app = models.ForeignKey("AppEntityData", on_delete=models.CASCADE)
-    collection = models.ForeignKey("Collection", on_delete=models.CASCADE)
+    app = models.ForeignKey(UserAppData, on_delete=models.CASCADE)
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name

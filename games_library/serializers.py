@@ -1,9 +1,9 @@
 from rest_framework import serializers
-from games_library.models import AppEntityData, Category, Collection, Entity, Genre, ImageData, Release
+from games_library.models import AppData, Category, Collection, Developer, Genre, ImageData, Publisher, Release
 
-class AppEnntityDataSerializer(serializers.ModelSerializer):
+class AppDataSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AppEntityData
+        model = AppData
         fields = ["app_id", 
                 "name", 
                 "type", 
@@ -21,7 +21,7 @@ class AppEnntityDataSerializer(serializers.ModelSerializer):
 
 class UserAppDataSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AppEntityData
+        model = AppData
         fields = ["app_data", 
                 "status", 
                 "score", 
@@ -30,9 +30,14 @@ class UserAppDataSerializer(serializers.ModelSerializer):
                 "end_date", 
                 "hours_spent"] 
 
-class EntitySerializer(serializers.ModelSerializer):
+class DeveloperSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Entity
+        model = Developer
+        fields = ["name"]
+
+class PublisherSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Publisher
         fields = ["name"]
 
 class GenreSerializer(serializers.ModelSerializer):
