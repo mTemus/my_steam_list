@@ -54,14 +54,13 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
     def get_apps_by_ids(self, apps_ids):
         apps_from_db = AppData.objects.filter(app_id__in=apps_ids)
         apps_ids_from_db = [app_data.app_id for app_data in apps_from_db]
-        apps_to_querry = apps_ids - apps_ids_from_db
-
+        apps_to_querry = [id for id in apps_ids if id not in apps_ids_from_db]
+        
         if len(apps_to_querry) == 0:
-            serializer = AppDataSerializer(data=apps_from_db, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return apps_from_db
 
         apps_from_steam = self._get_apps_from_steam(apps_to_querry)
-        return apps_from_db + apps_from_steam
+        return apps_from_db | apps_from_steam
 
     def _get_apps_ids(self, query_name):
         global all_apps_data
@@ -79,19 +78,23 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return self._create_and_bound_data(apps_data)
         
     def _get_item_from_list_appid(self, id, collection):
+        print(id, collection)
+        print("================================")
+
         return next((item for item in collection if item.app_id == id), None)
 
     def _get_item_from_list_name(self, name, collection):
         return next((item for item in collection if item.name == name), None)
 
     def _create_and_bound_data(self, apps_data):
+
         apps = self._create_apps(apps_data)
         dlcs = self._create_dlcs(apps_data)
         images = self._create_app_images(apps_data)
         publishers = self._create_publishers(apps_data)
-        developers = self.create_developers(apps_data)
-        genres = self._create_app_genres(apps_data)
-        categories = self._create_app_categories(apps_data)
+        developers = self._create_developers(apps_data)
+        genres = self._create_genres(apps_data)
+        categories = self._create_categories(apps_data)
         releases = self._create_app_releases(apps_data)
         app_dlcs = []
         app_developers = []
@@ -106,8 +109,8 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             app.images = self._get_item_from_list_appid(app.app_id, images)
 
             app_dlcs += self._create_app_dlcs(app, app_data, dlcs)
-            app_developers += self._create_app_developers(app, app_data, publishers)
-            app_publishers += self._create_app_publishers(app, app_data, developers)
+            app_developers += self._create_app_developers(app, app_data, developers)
+            app_publishers += self._create_app_publishers(app, app_data, publishers)
             app_genres += self._create_app_genres(app, app_data, genres)
             app_categories += self._create_app_categories(app, app_data, categories)
             
@@ -123,7 +126,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return next((element for element in collection if element.name == name), None)
 
     def _get_raw_app_details(self, app_id):
-        requested_app = requests.get(STEAM_APP_DETAILS, params=app_id).json()
+        requested_app = requests.get(STEAM_APP_DETAILS, params={"appids":app_id}).json()
         return self._get_item_from_dict(requested_app)
 
     def _extract_apps_data(self, apps_data):            
@@ -143,21 +146,21 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             "short_desc": app_data.get("short_description", ""),
             "full_desc": app_data.get("detailed_description", ""),
             "about": app_data.get("about_the_game"),
-            "images": [{"header": app_data.get("header_image", ""), "background": app_data.get("background", "")}],
+            "images": {"header": app_data.get("header_image", ""), "background": app_data.get("background", "")},
             "developers": app_data.get("developers", ""),
-            "publishers": app_data.get("publishers", ""),
+            "publishers": app_data.get("publishers", "") if app_data.get("publishers", "")[0] != "" else app_data.get("developers", "")[0],
             "platforms": app_data.get("platforms", ""),
             "release_date": app_data.get("release_date", ""),
-            "categories": [self._get_item_from_dict_dict(category, "description") for category in app_data.get("categories", {})],
-            "genres": [self._get_item_from_dict_dict(genre, "description") for genre in app_data.get("genres", {})],
+            "categories": [category.get("description") for category in app_data.get("categories", {})],
+            "genres": [genre.get("description") for genre in app_data.get("genres", {})],
             }
 
     def _get_item_from_dict(self, dict):
         key = next(iter(dict))
         return dict.get(key, {})
 
-    def _get_item_from_dict_dict(self, dict_dict, get_keyword):
-        return self._get_item_from_dict(dict_dict).get(get_keyword, "")
+    def _get_items_from_list_list(self, list_list):
+        return [item for first_list in list_list for item in first_list]
 
     def _create_model_with_ids(self, func, models_data):
         models = [func(model_data) for model_data in models_data]
@@ -166,6 +169,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _create_model_with_names(self, func, models_data):
         models = [func(model_data) for model_data in models_data]
+        models = self._get_items_from_list_list(models)
         names = [model.name for model in models]
         return models, names
 
@@ -180,22 +184,22 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return ImageData.objects.filter(app_id__in = app_ids)
 
     def _create_publishers(self, apps_data):
-        publishers, names = self._create_model_with_names(self._create_publisher, apps_data) 
+        publishers, names = self._create_model_with_names(self._create_publisher, apps_data)
         Publisher.objects.bulk_create(publishers, ignore_conflicts=True)
         return Publisher.objects.filter(name__in = names)
 
-    def _create_entities(self, apps_data):
-        developers, names = self._create_model_with_names(self._create_developer, apps_data) 
+    def _create_developers(self, apps_data):
+        developers, names = self._create_model_with_names(self._create_developer, apps_data)
         Developer.objects.bulk_create(developers, ignore_conflicts=True)
         return Developer.objects.filter(name__in = names)
 
-    def _create_app_genres(self, apps_data):
-        genres, names = self._create_model_with_names(self._create_app_genre, apps_data) 
+    def _create_genres(self, apps_data):
+        genres, names = self._create_model_with_names(self._create_app_genre, apps_data)
         Genre.objects.bulk_create(genres, ignore_conflicts=True)
         return Genre.objects.filter(name__in = names)
 
-    def _create_app_categories(self, apps_data):
-        categories, names = self._create_model_with_names(self._create_app_category, apps_data) 
+    def _create_categories(self, apps_data):
+        categories, names = self._create_model_with_names(self._create_app_category, apps_data)
         Category.objects.bulk_create(categories, ignore_conflicts=True)
         return Category.objects.filter(name__in = names)
 
@@ -248,18 +252,18 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _create_app_dlcs(self, app, app_data, dlcs):
         created_dlcs = [AppDlc(
-                name = app.name + ": " + dlc_id,
+                name = f"{app.name} - dlc_id: {dlc_id}",
                 app = app, 
                 dlc = self._get_item_from_list_appid(dlc_id, dlcs)
                 ) 
                 for dlc_id in app_data.get("dlc")]
 
-        for dlc in created_dlcs: dlc.parent_app = app
+        for dlc in created_dlcs: dlc.parent_app = app.app_id
         return created_dlcs
 
     def _create_app_developers(self, app, app_data, developers):
         return [AppDeveloper(
-                name = app.name + ": " + developer,
+                name = f"{app.name}: {developer}",
                 app = app, 
                 developer = self._get_item_from_list_name(developer, developers)
                 ) 
@@ -267,21 +271,21 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _create_app_publishers(self, app, app_data, publishers):
        return [AppPublisher(
-            name = app.name + ": " + publisher,
+            name = f"{app.name}: {publisher}",
             app = app, 
             publisher = self._get_item_from_list_name(publisher, publishers)
             ) for publisher in app_data.get("publishers")]
 
     def _create_app_genres(self, app, app_data, genres):
         return [AppGenre(
-            name = app.name + ": " + genre,
+            name = f"{app.name}: {genre}",
             app = app,
             genre = self._get_item_from_list_name(genre, genres)
             ) for genre in app_data.get("genres")]
 
     def _create_app_categories(self, app, app_data, categories):
-        return [AppGenre(
-            name = app.name + ": " + category,
+        return [AppCategory(
+            name = f"{app.name}: {category}",
             app = app,
-            genre = self._get_item_from_list_name(category, categories)
+            category = self._get_item_from_list_name(category, categories)
             ) for category in app_data.get("categories")]
