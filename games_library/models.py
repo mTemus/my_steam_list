@@ -5,16 +5,17 @@ from .choices import GAME_STATUS_CHOICES, PLAYING
 
 # Create your models here.
 
-class Entity(models.Model):
-    name = models.CharField(max_length=100)
+class Developer(models.Model):
+    name = models.CharField(max_length=100, unique=True)
 
-class Developer(Entity):
     def __str__(self):
-        return super.__name__
+        return self.name
 
-class Publisher(Entity):
+class Publisher(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
     def __str__(self):
-        return super.__name__
+        return self.name
 
 class Genre(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -40,31 +41,31 @@ class ImageData(models.Model):
     background = models.CharField(max_length=100)
 
     def __str__(self):
-        return self.app_id + ' images'
+        return f"{self.app_id} images"
 
 class Release(models.Model):
     app_id = models.IntegerField(primary_key=True, unique=True)
     comming_soon = models.BooleanField(default=False)
-    release_date = models.DateField()
+    release_date = models.CharField(max_length=30)
 
     def __str__(self):
-        return self.app_id + ' release'
+        return f"{self.app_id} release"
 
 class AppData(models.Model):
     app_id = models.IntegerField(primary_key=True, unique=True)
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=100)
     type = models.CharField(max_length=20)
-    parent_app = models.IntegerField()
+    parent_app = models.IntegerField(null=True)
     dlc = models.ManyToManyField("self", through="AppDlc")
-    short_desc = models.CharField(max_length=500)
-    full_desc = models.CharField(max_length=2000)
-    about = models.CharField(max_length=2000)
-    images = models.OneToOneField(ImageData, unique=True, on_delete=models.CASCADE)
+    short_desc = models.CharField(max_length=500, default="")
+    full_desc = models.CharField(max_length=10000, default="")
+    about = models.CharField(max_length=10000, default="")
+    images = models.OneToOneField(ImageData, null=True, on_delete=models.CASCADE)
     developers = models.ManyToManyField(Developer, through="AppDeveloper")
     publishers = models.ManyToManyField(Publisher, through="AppPublisher")
     genres = models.ManyToManyField(Genre, through="AppGenre")
     categories = models.ManyToManyField(Category, through="AppCategory")
-    release = models.OneToOneField(Release, unique=True, on_delete=models.CASCADE)
+    release = models.OneToOneField(Release, unique=True, null=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
