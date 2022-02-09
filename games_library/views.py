@@ -1,3 +1,4 @@
+from codecs import ignore_errors
 from types import NoneType
 import requests
 
@@ -14,8 +15,6 @@ from .serializers import AppDataSerializer, QAppNameSerializer
 STEAM_ALL_APPS = 'http://api.steampowered.com/ISteamApps/GetAppList/v0002/'
 STEAM_APP_DETAILS = 'https://store.steampowered.com/api/appdetails'
 STEAM_STORE_APP = 'https://store.steampowered.com/app/'
-
-# update_date = datetime.datetime(0, 0, 0)
 
 all_apps_data = None
 
@@ -34,13 +33,9 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         apps_ids = self._get_apps_ids(query.get("name"))
 
         querried_apps = self.get_apps_by_ids(apps_ids)
-        serializer = AppDataSerializer(data=querried_apps, many=True)
-
-        if serializer.is_valid():
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-    
+        serializer = AppDataSerializer(querried_apps, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
     def get_apps_by_ids(self, apps_ids):
         apps_from_db = AppData.objects.filter(app_id__in=apps_ids)
         apps_ids_from_db = [app_data.app_id for app_data in apps_from_db]
@@ -91,21 +86,21 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         app_genres = []
         app_categories = []
 
-        print(list(dlcs))
-        print("**************************************************")
-
         for app_data in apps_data:
             app = self._get_item_from_list_appid(app_data.get("app_id"), apps)
 
-            app.release = self._get_item_from_list_appid(app.app_id, releases)
             app.images = self._get_item_from_list_appid(app.app_id, images)
+            app.release = self._get_item_from_list_appid(app.app_id, releases)
 
             app_dlcs += self._create_app_dlcs(app, app_data, dlcs)
             app_developers += self._create_app_developers(app, app_data, developers)
             app_publishers += self._create_app_publishers(app, app_data, publishers)
             app_genres += self._create_app_genres(app, app_data, genres)
             app_categories += self._create_app_categories(app, app_data, categories)
-            
+
+        AppData.objects.bulk_update(apps, ["images", "release"])
+        AppData.objects.bulk_update(dlcs, ["parent_app"])    
+
         AppDlc.objects.bulk_create(app_dlcs, ignore_conflicts=True)
         AppDeveloper.objects.bulk_create(app_developers, ignore_conflicts=True)
         AppPublisher.objects.bulk_create(app_publishers, ignore_conflicts=True)
@@ -250,7 +245,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
                 ) 
                 for dlc_id in app_data.get("dlc")]
 
-        for dlc in created_dlcs: dlc.parent_app = app.app_id
+        for dlc in created_dlcs: dlc.dlc.parent_app = app.app_id
         return created_dlcs
 
     def _create_app_developers(self, app, app_data, developers):
