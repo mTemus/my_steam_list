@@ -1,24 +1,6 @@
 from rest_framework import serializers
 from games_library.models import AppData, Category, Collection, Developer, Genre, ImageData, Publisher, Release
 
-class AppDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AppData
-        fields = ["app_id", 
-                "name", 
-                "type", 
-                "parent_app", 
-                "dlc", 
-                "short_desc", 
-                "full_desc", 
-                "about", 
-                "images", 
-                "developers", 
-                "publishers", 
-                "genres", 
-                "categories", 
-                "release"]
-
 class UserAppDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppData
@@ -67,3 +49,29 @@ class ReleaseSerializer(serializers.ModelSerializer):
 
 class QAppNameSerializer(serializers.Serializer):
     name = serializers.CharField()
+
+
+class AppDataSerializer(serializers.ModelSerializer):
+    images = ImageDataSerializer(read_only=True, many=False)
+    developers = DeveloperSerializer(read_only=True, many=True)
+    publishers = PublisherSerializer(read_only=True, many=True)
+    genres = GenreSerializer(read_only=True, many=True)
+    categories = CategorySerializer(read_only=True, many=True)
+    release = ReleaseSerializer(read_only=True, many=False)
+
+    class Meta:
+        model = AppData
+        fields = ["app_id", 
+                "name", 
+                "type", 
+                "parent_app", 
+                "dlc", 
+                "short_desc", 
+                "full_desc", 
+                "about", 
+                "images", 
+                "developers", 
+                "publishers", 
+                "genres", 
+                "categories", 
+                "release"]
