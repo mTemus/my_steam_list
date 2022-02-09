@@ -25,20 +25,6 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppNameSerializer)
     def querry_apps_by_name(self, request):
-
-        # [x] 1. Get apps ids 
-        # [x] 2. Try to get apps from db (cached data)
-        # [x] 3. Check which ids were querried from db, substract from list
-        # [x] 4. Get apps details from steam api
-            # [x] 5. Filter unsuccessfull requests
-            # [x] 6. Extract usable data
-            # [x] 7. Create models based on data
-            # [x] 7.1 Bulk create models
-            # [x] 7.2 Get created models from db filtered by "app_id__in"
-            # [x] 8. Bound models
-            # [x] 9. Return created models
-        # [x] 10. Add created apps models to models querried from db
-
         query = request.data
         query_serializer = QAppNameSerializer(data=query)
 
@@ -49,7 +35,11 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
         querried_apps = self.get_apps_by_ids(apps_ids)
         serializer = AppDataSerializer(data=querried_apps, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        if serializer.is_valid():
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
     
     def get_apps_by_ids(self, apps_ids):
         apps_from_db = AppData.objects.filter(app_id__in=apps_ids)
@@ -78,18 +68,17 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return self._create_and_bound_data(apps_data)
         
     def _get_item_from_list_appid(self, id, collection):
-        print(id, collection)
-        print("================================")
+        return next((item for item in collection if item.app_id == id), None)
 
+    def _get_item_from_list_appid2(self, id, collection):
         return next((item for item in collection if item.app_id == id), None)
 
     def _get_item_from_list_name(self, name, collection):
         return next((item for item in collection if item.name == name), None)
 
     def _create_and_bound_data(self, apps_data):
-
         apps = self._create_apps(apps_data)
-        dlcs = self._create_dlcs(apps_data)
+        dlcs = self._get_items_from_list_list(self._create_dlcs(apps_data))  
         images = self._create_app_images(apps_data)
         publishers = self._create_publishers(apps_data)
         developers = self._create_developers(apps_data)
@@ -101,6 +90,9 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         app_publishers = []
         app_genres = []
         app_categories = []
+
+        print(list(dlcs))
+        print("**************************************************")
 
         for app_data in apps_data:
             app = self._get_item_from_list_appid(app_data.get("app_id"), apps)
@@ -148,7 +140,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
             "about": app_data.get("about_the_game"),
             "images": {"header": app_data.get("header_image", ""), "background": app_data.get("background", "")},
             "developers": app_data.get("developers", ""),
-            "publishers": app_data.get("publishers", "") if app_data.get("publishers", "")[0] != "" else app_data.get("developers", "")[0],
+            "publishers": app_data.get("publishers", "") if app_data.get("publishers", "")[0] != "" else app_data.get("developers", ""),
             "platforms": app_data.get("platforms", ""),
             "release_date": app_data.get("release_date", ""),
             "categories": [category.get("description") for category in app_data.get("categories", {})],
@@ -222,7 +214,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         )
 
     def _create_dlcs(self, apps_data):
-        return [self.get_apps_by_ids(app_data.get("dlc")) for app_data in apps_data]
+        return [self.get_apps_by_ids(app_data.get("dlc")) for app_data in apps_data if len(app_data.get("dlc")) != 0]
 
     def _create_app_image(self, app_data):
         return ImageData(
