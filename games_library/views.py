@@ -59,6 +59,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _get_apps_from_steam(self, apps_ids):
         raw_data = [self._get_raw_app_details(app_id) for app_id in apps_ids]
+        raw_data = [data for data in raw_data if data]
         apps_data = self._extract_apps_data(raw_data)
         return self._create_and_bound_data(apps_data)
         
@@ -113,8 +114,9 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return next((element for element in collection if element.name == name), None)
 
     def _get_raw_app_details(self, app_id):
+        print(app_id)
         requested_app = requests.get(STEAM_APP_DETAILS, params={"appids":app_id}).json()
-        return self._get_item_from_dict(requested_app)
+        return self._get_item_from_dict(requested_app) if requested_app != None else {}
 
     def _extract_apps_data(self, apps_data):            
         return [self._extract_app_data(app_data) for app_data in self._filter_success_requests(apps_data)]
@@ -238,13 +240,18 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         )
 
     def _create_app_dlcs(self, app, app_data, dlcs):
-        created_dlcs = [AppDlc(
+        created_dlcs = []
+        
+        for dlc_id in app_data.get("dlc"):
+            dlc = self._get_item_from_list_appid(dlc_id, dlcs)
+
+            if dlc == None: continue
+            created_dlcs += [AppDlc(
                 name = f"{app.name} - dlc_id: {dlc_id}",
                 app = app, 
-                dlc = self._get_item_from_list_appid(dlc_id, dlcs)
-                ) 
-                for dlc_id in app_data.get("dlc")]
-
+                dlc = dlc
+                )]
+                
         for dlc in created_dlcs: dlc.dlc.parent_app = app.app_id
         return created_dlcs
 
