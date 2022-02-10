@@ -8,7 +8,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 
 from .models import AppCategory, AppDeveloper, AppDlc, AppData, AppGenre, AppPublisher, Category, Genre, ImageData, Release, Publisher, Developer
-from .serializers import AppDataSerializer, QAppNameSerializer
+from .serializers import AppDataSerializer, QAppSerializer
 
 # Create your views here.
 
@@ -22,20 +22,31 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
     queryset = AppData.objects.all()
     serializer_class = AppDataSerializer
 
-    @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppNameSerializer)
+    @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppSerializer)
     def querry_apps_by_name(self, request):
         query = request.data
-        query_serializer = QAppNameSerializer(data=query)
+        query_serializer = QAppSerializer(data=query)
 
-        if not query_serializer.is_valid() or query.get("name") == NoneType:
+        if not query_serializer.is_valid() or query.get("q") == NoneType:
             return Response(status.HTTP_400_BAD_REQUEST)
 
-        apps_ids = self._get_apps_ids(query.get("name"))
+        apps_ids = self._get_apps_ids(query.get("q"))
 
         querried_apps = self.get_apps_by_ids(apps_ids)
         serializer = AppDataSerializer(querried_apps, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
         
+    @action(methods=['post'], detail=False, url_path='id', url_name='get_by_id', serializer_class=QAppSerializer)
+    def querry_app_by_id(self, request):
+        query = request.data
+        query_serializer = QAppSerializer(data=query)
+        if not query_serializer.is_valid() or query.get("q") == NoneType:
+            return Response(status.HTTP_400_BAD_REQUEST)
+
+        querried_apps = self.get_apps_by_ids([query.get("q")])
+        serializer = AppDataSerializer(querried_apps, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
     def get_apps_by_ids(self, apps_ids):
         apps_from_db = AppData.objects.filter(app_id__in=apps_ids)
         apps_ids_from_db = [app_data.app_id for app_data in apps_from_db]
