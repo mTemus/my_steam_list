@@ -114,7 +114,6 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
         return next((element for element in collection if element.name == name), None)
 
     def _get_raw_app_details(self, app_id):
-        print(app_id)
         requested_app = requests.get(STEAM_APP_DETAILS, params={"appids":app_id}).json()
         return self._get_item_from_dict(requested_app) if requested_app != None else {}
 
@@ -247,7 +246,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
             if dlc == None: continue
             created_dlcs += [AppDlc(
-                name = f"{app.name} - dlc_id: {dlc_id}",
+                name = f"{app.app_id}: {dlc_id}",
                 app = app, 
                 dlc = dlc
                 )]
@@ -257,7 +256,7 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _create_app_developers(self, app, app_data, developers):
         return [AppDeveloper(
-                name = f"{app.name}: {developer}",
+                name = f"{app.app_id}: {developer}",
                 app = app, 
                 developer = self._get_item_from_list_name(developer, developers)
                 ) 
@@ -265,21 +264,21 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
 
     def _create_app_publishers(self, app, app_data, publishers):
        return [AppPublisher(
-            name = f"{app.name}: {publisher}",
+            name = f"{app.app_id}: {publisher}",
             app = app, 
             publisher = self._get_item_from_list_name(publisher, publishers)
             ) for publisher in app_data.get("publishers")]
 
     def _create_app_genres(self, app, app_data, genres):
         return [AppGenre(
-            name = f"{app.name}: {genre}",
+            name = f"{app.app_id}: {genre}",
             app = app,
             genre = self._get_item_from_list_name(genre, genres)
             ) for genre in app_data.get("genres")]
 
     def _create_app_categories(self, app, app_data, categories):
         return [AppCategory(
-            name = f"{app.name}: {category}",
+            name = f"{app.app_id}: {category}",
             app = app,
             category = self._get_item_from_list_name(category, categories)
             ) for category in app_data.get("categories")]
