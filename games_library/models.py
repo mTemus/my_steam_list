@@ -60,7 +60,7 @@ class AppData(models.Model):
     short_desc = models.CharField(max_length=500, default="")
     full_desc = models.CharField(max_length=10000, default="")
     about = models.CharField(max_length=10000, default="")
-    images = models.OneToOneField(ImageData, null=True, on_delete=models.CASCADE)
+    images = models.OneToOneField(ImageData, unique=True, null=True, on_delete=models.CASCADE)
     developers = models.ManyToManyField(Developer, through="AppDeveloper")
     publishers = models.ManyToManyField(Publisher, through="AppPublisher")
     genres = models.ManyToManyField(Genre, through="AppGenre")
