@@ -29,12 +29,6 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
-class Collection(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.name
-
 class ImageData(models.Model):
     app_id = models.IntegerField(primary_key=True, unique=True)
     header = models.CharField(max_length=100)
@@ -70,26 +64,7 @@ class AppData(models.Model):
     def __str__(self):
         return self.name
 
-class UserAppData(models.Model):
-    app_data = models.OneToOneField(AppData, on_delete=models.CASCADE)
 
-    status = models.CharField(
-        max_length = 3,
-        choices = GAME_STATUS_CHOICES,
-        default = PLAYING)
-
-    score = models.IntegerField( 
-        validators=[
-            MaxValueValidator(2022),
-            MinValueValidator(1000)
-        ])
-    collections = models.ManyToManyField(Collection, through="AppCollection")
-    start_date = models.DateField()
-    end_date = models.DateField()    
-    hours_spent = models.FloatField()
-
-    def __str__(self):
-        return self.app_data.name
 
 
 
