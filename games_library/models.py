@@ -109,11 +109,3 @@ class AppDlc(models.Model):
 
     def __str__(self):
         return self.name
-
-class AppCollection(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    app = models.ForeignKey(UserAppData, on_delete=models.CASCADE)
-    collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.name
