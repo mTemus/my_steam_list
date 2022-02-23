@@ -1,16 +1,5 @@
 from rest_framework import serializers
-from games_library.models import AppData, Category, Collection, Developer, Genre, ImageData, Publisher, Release
-
-class UserAppDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AppData
-        fields = ["app_data", 
-                "status", 
-                "score", 
-                "collections", 
-                "start_date", 
-                "end_date", 
-                "hours_spent"] 
+from games_library.models import AppData, Category, Developer, Genre, ImageData, Publisher, Release
 
 class DeveloperSerializer(serializers.ModelSerializer):
     class Meta:
@@ -30,11 +19,6 @@ class GenreSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["name"]
-
-class CollectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Collection
         fields = ["name"]
 
 class ImageDataSerializer(serializers.ModelSerializer):
