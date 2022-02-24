@@ -44,6 +44,7 @@ EMAIL_USE_TLS = True
 INSTALLED_APPS = [
     'djoser', 
     'games_library',
+    'users_library',
     'rest_framework',
     'rest_framework.authtoken',
     'django.contrib.admin',
@@ -62,7 +63,6 @@ REST_FRAMEWORK = {
 }
 
 DJOSER = {
-    'LOGIN_FIELD': 'email',
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
     'ACTIVATION_URL': '#/activate/{uid}/{token}',
     'SEND_ACTIVATION_EMAIL': True,
@@ -71,7 +71,9 @@ DJOSER = {
     'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': True, 
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SERIALIZERS': {
-        
+        'user_create': 'users_library.serializers.UserCreateSerializer',
+        'user': 'users_library.serializers.UserCreateSerializer',
+        'user_delete': 'djoser.serializers.UserDeleteSerializer',
     }
 }
 

@@ -1,4 +1,3 @@
-from codecs import ignore_errors
 from types import NoneType
 import requests
 
