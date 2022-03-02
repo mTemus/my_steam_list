@@ -8,6 +8,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('games_library.urls')),
     path(r'auth/', include('djoser.urls')),
-    path(r'auth/', include('djoser.urls.authtoken')),
     path(r'auth/', include('djoser.urls.jwt')),
 ]
