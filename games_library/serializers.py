@@ -31,8 +31,11 @@ class ReleaseSerializer(serializers.ModelSerializer):
         model = Release
         fields = ["comming_soon", "release_date"]
 
-class QAppSerializer(serializers.Serializer):
-    q = serializers.CharField()
+class QAppNameSerializer(serializers.Serializer):
+    name = serializers.CharField()
+
+class QAppIdSerializer(serializers.Serializer):
+    app_id = serializers.IntegerField()
 
 class AppDataSerializer(serializers.ModelSerializer):
     images = ImageDataSerializer(read_only=True, many=False)

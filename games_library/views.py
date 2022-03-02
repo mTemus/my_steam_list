@@ -7,7 +7,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 
 from .models import AppCategory, AppDeveloper, AppDlc, AppData, AppGenre, AppPublisher, Category, Genre, ImageData, Release, Publisher, Developer
-from .serializers import AppDataSerializer, QAppSerializer
+from .serializers import AppDataSerializer, QAppIdSerializer, QAppNameSerializer
 
 # Create your views here.
 
@@ -21,28 +21,28 @@ class AppDataGenericView(GenericViewSet, mixins.ListModelMixin):
     queryset = AppData.objects.all()
     serializer_class = AppDataSerializer
 
-    @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppSerializer)
+    @action(methods=['post'], detail=False, url_path='name', url_name='get_by_name', serializer_class=QAppNameSerializer)
     def querry_apps_by_name(self, request):
         query = request.data
-        query_serializer = QAppSerializer(data=query)
+        query_serializer = QAppNameSerializer(data=query)
 
-        if not query_serializer.is_valid() or query.get("q") == NoneType:
+        if not query_serializer.is_valid() or query.get("name") == NoneType:
             return Response(status.HTTP_400_BAD_REQUEST)
 
-        apps_ids = self._get_apps_ids(query.get("q"))
+        apps_ids = self._get_apps_ids(query.get("name"))
 
         querried_apps = self.get_apps_by_ids(apps_ids)
         serializer = AppDataSerializer(querried_apps, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
         
-    @action(methods=['post'], detail=False, url_path='id', url_name='get_by_id', serializer_class=QAppSerializer)
+    @action(methods=['post'], detail=False, url_path='id', url_name='get_by_id', serializer_class=QAppIdSerializer)
     def querry_app_by_id(self, request):
         query = request.data
-        query_serializer = QAppSerializer(data=query)
-        if not query_serializer.is_valid() or query.get("q") == NoneType:
+        query_serializer = QAppIdSerializer(data=query)
+        if not query_serializer.is_valid() or query.get("app_id") == NoneType:
             return Response(status.HTTP_400_BAD_REQUEST)
 
-        querried_apps = self.get_apps_by_ids([query.get("q")])
+        querried_apps = self.get_apps_by_ids([query.get("app_id")])
         serializer = AppDataSerializer(querried_apps, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
