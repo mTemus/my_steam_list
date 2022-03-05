@@ -38,7 +38,7 @@ class UserAppDataUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAppData
         fields = [
-                "id",
+                "app_data",
                 "status", 
                 "score", 
                 "collections", 
