@@ -1,16 +1,5 @@
 from rest_framework import serializers
-from games_library.models import AppData, Category, Collection, Developer, Genre, ImageData, Publisher, Release
-
-class UserAppDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AppData
-        fields = ["app_data", 
-                "status", 
-                "score", 
-                "collections", 
-                "start_date", 
-                "end_date", 
-                "hours_spent"] 
+from games_library.models import AppData, Category, Developer, Genre, ImageData, Publisher, Release
 
 class DeveloperSerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,11 +21,6 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ["name"]
 
-class CollectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Collection
-        fields = ["name"]
-
 class ImageDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImageData
@@ -47,8 +31,11 @@ class ReleaseSerializer(serializers.ModelSerializer):
         model = Release
         fields = ["comming_soon", "release_date"]
 
-class QAppSerializer(serializers.Serializer):
-    q = serializers.CharField()
+class QAppNameSerializer(serializers.Serializer):
+    name = serializers.CharField()
+
+class QAppIdSerializer(serializers.Serializer):
+    app_id = serializers.IntegerField()
 
 class AppDataSerializer(serializers.ModelSerializer):
     images = ImageDataSerializer(read_only=True, many=False)

@@ -4,3 +4,4 @@ django-filter
 python-dotenv
 requests
 psycopg2
+djoser
